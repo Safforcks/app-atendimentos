@@ -34,7 +34,7 @@ public class AtendimentoService {
 
             //Enviando a pergunta para a IA e obter a resposta
             var resposta = openAiClient.perguntar(atendimento.getUsuario(), atendimento.getPergunta());
-            atendimento.setUsuario(resposta);
+            atendimento.setResposta(resposta);
 
             //Imprimir a resposta para o usuário
             System.out.println("RESPOSTA: \n");

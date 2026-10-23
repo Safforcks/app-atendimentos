@@ -14,7 +14,7 @@ public class AtendimentoRepository {
         try (var connection = factory.createConnection()) {
 
             var sql = """
-                    insert into atendimento(id, usuario, pergunta, resposta) 
+                    insert into atendimentos(id, usuario, pergunta, resposta) 
                     values(?, ?, ?, ?)
                     """;
 
