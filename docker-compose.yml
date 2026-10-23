@@ -1,0 +1,56 @@
+name: app-atendimentos
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coti
+      POSTGRES_PASSWORD: coti
+      POSTGRES_DB: bd-atendimentos
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - atendimentos_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cotiinformatica.com.br
+      PGADMIN_DEFAULT_PASSWORD: coti
+    ports:
+      - "5052:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - atendimentos_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - /venv/bin/python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/misc/ping', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+networks:
+  atendimentos_network:
+    driver: bridge
