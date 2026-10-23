@@ -13,5 +13,6 @@ public class Atendimento {
     private UUID id;
     private String usuario;
     private String pergunta;
+    private String resposta;
     private LocalDateTime dataHora;
 }
