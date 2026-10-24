@@ -1,53 +1,90 @@
-# app-atendimentos — Atendimento com IA em Java
+<h1 align="center">Atendimento com IA em Java</h1>
 
-Aplicação de console que recebe o nome e a pergunta de um usuário, solicita uma resposta à OpenAI e registra o atendimento no PostgreSQL. O assistente foi configurado para responder sobre a COTI Informática, seguindo as orientações definidas no próprio código.
+<p align="center">
+  Uma pergunta no terminal. Uma resposta da IA. Um atendimento registrado.
+</p>
 
-O projeto reúne Java, integração com a Responses API, JDBC, Lombok e Docker Compose. A interação acontece no terminal; o pgAdmin permite administrar o banco pelo navegador.
+<p align="center">
+  <strong>Java 21 · OpenAI · PostgreSQL · JDBC · Lombok · Docker</strong>
+</p>
 
-**Escopo atual:** uma pergunta e uma resposta por execução. O programa implementa a geração e a gravação do atendimento, sem menu de consulta, atualização ou exclusão.
+---
 
-## Sumário
+O **app-atendimentos** conecta uma interação simples no console a dois serviços: a OpenAI, que gera a resposta, e o PostgreSQL, que guarda o atendimento. O assistente recebe orientações para atender dúvidas sobre a COTI Informática em português.
 
-- [Funcionalidades e fluxo](#funcionalidades-e-fluxo)
-- [Tecnologias](#tecnologias)
-- [Estrutura e responsabilidades](#estrutura-e-responsabilidades)
-- [Integração com a OpenAI](#integração-com-a-openai)
-- [Regras de atendimento](#regras-de-atendimento)
-- [Regras de dados e tratamento de falhas](#regras-de-dados-e-tratamento-de-falhas)
-- [Banco de dados](#banco-de-dados)
-- [Como executar](#como-executar)
-- [Exemplo de uso e conferência](#exemplo-de-uso-e-conferência)
-- [Ambiente Docker](#ambiente-docker)
-- [Problemas comuns](#problemas-comuns)
-- [Limitações e possibilidades de evolução](#limitações-e-possibilidades-de-evolução)
-- [Imagens do projeto](#imagens-do-projeto)
-- [Fontes e referências](#fontes-e-referências)
+O projeto mostra como organizar essa integração em Java: capturar a pergunta, preparar o contexto da IA, extrair a resposta e persistir os dados. Cada execução realiza **um atendimento**, com uma pergunta e uma resposta.
 
-## Funcionalidades e fluxo
+[Veja as imagens](#o-projeto-em-duas-imagens) · [Entenda o fluxo](#da-pergunta-ao-registro) · [Explore a implementação](#explore-a-implementação) · [Consulte as fontes](#fontes-e-referências)
 
-| Funcionalidade | Comportamento atual |
-| --- | --- |
-| Identificar o usuário | Solicita um nome no terminal e o utiliza na composição da mensagem enviada à IA. |
-| Receber uma pergunta | Lê uma linha digitada pelo usuário. |
-| Gerar uma resposta | Realiza uma chamada à Responses API usando o SDK Java da OpenAI. |
-| Mostrar o resultado | Imprime o texto retornado no terminal. |
-| Registrar o atendimento | Insere UUID, usuário, pergunta e resposta no PostgreSQL; o banco preenche a data e a hora. |
-| Administrar os registros | Disponibiliza PostgreSQL e pgAdmin via Docker Compose; a consulta é feita manualmente no banco. |
+## O projeto em duas imagens
 
-A execução segue esta ordem:
+### Diagrama do projeto
 
-1. `Main` chama `AtendimentoService.realizarAtendimento()`.
-2. O serviço cria um objeto `Atendimento` e gera seu ID com `UUID.randomUUID()`.
-3. O usuário informa nome e pergunta.
-4. `OpenAiClient.perguntar(usuario, pergunta)` solicita a resposta.
-5. O serviço atribui o texto ao atendimento e o exibe.
-6. `AtendimentoRepository.inserir(atendimento)` abre a conexão e tenta gravar o registro.
+Uma visão visual do projeto para acompanhar a leitura da implementação.
 
-**A resposta é exibida antes da gravação.** Se o PostgreSQL estiver indisponível ou rejeitar os dados, o usuário pode receber a resposta e, em seguida, uma mensagem de erro, sem que o atendimento fique registrado. A criação dos objetos de repositório e cliente no início do serviço não abre a conexão JDBC naquele momento.
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/d95c86e8-8b47-4d0f-91d1-859b5290dd2d">
+    <img src="https://github.com/user-attachments/assets/d95c86e8-8b47-4d0f-91d1-859b5290dd2d" alt="Diagrama do projeto de atendimento com IA" width="100%" />
+  </a>
+</p>
 
-Não há repetição automática nem conversa com histórico. Para fazer outra pergunta, execute o programa novamente.
+### Atendimento com IA em Java
 
-## Tecnologias
+A interação do atendimento, apresentada na imagem do projeto.
+
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/4c2bf78a-351f-47c1-b8d8-764f9be5983e">
+    <img src="https://github.com/user-attachments/assets/4c2bf78a-351f-47c1-b8d8-764f9be5983e" alt="Atendimento com inteligência artificial em Java" width="100%" />
+  </a>
+</p>
+
+*Clique em uma imagem para abrir a versão original.*
+
+## Da pergunta ao registro
+
+### 1. A pessoa apresenta sua dúvida
+
+O ponto de entrada, `software.Main`, inicia o serviço de atendimento. O programa gera um UUID e solicita o nome e a pergunta no terminal.
+
+```text
+SEJA BEM-VINDO AO ATENDIMENTO DA COTI INFORMATICA!
+
+INFORME O SEU NOME......: Usuário Exemplo
+ESCREVA A SUA PERGUNTA..: Como posso confirmar informações sobre uma turma?
+
+PROCESSANDO RESPOSTA...
+```
+
+### 2. O Java solicita a resposta
+
+`AtendimentoService` encaminha os dados a `OpenAiClient`. O cliente monta a entrada com as orientações institucionais e a pergunta, chama a Responses API e devolve o primeiro bloco de texto encontrado.
+
+O modelo definido no código é `gpt-6-luna`. A execução depende de uma chave válida em `OPENAI_API_KEY` e do acesso ao modelo no projeto utilizado.
+
+### 3. A resposta aparece e o atendimento é gravado
+
+O serviço imprime a resposta e, em seguida, pede ao repositório que grave UUID, usuário, pergunta e resposta. O PostgreSQL preenche a data e a hora do registro.
+
+> **Um detalhe importante do fluxo:** a resposta aparece antes do acesso ao banco. Se a gravação falhar, a pessoa pode ter recebido a resposta sem que o atendimento tenha sido salvo.
+
+O programa encerra após essa interação. Uma nova execução inicia outro atendimento, sem recuperar o histórico anterior. Os registros podem ser consultados manualmente pelo pgAdmin ou por SQL.
+
+## O que orienta o assistente
+
+O atendimento tem um propósito definido: responder sobre a COTI Informática e seus cursos, com clareza e educação. O prompt orienta a IA a não inventar preços, vagas, datas ou condições comerciais e a encaminhar informações não confirmadas ao contato indicado no contexto.
+
+Essas orientações estão no código e são enviadas ao modelo a cada atendimento. Não existe consulta automática a sites ou catálogo atualizado. Também não há execução de matrícula, reserva, pagamento ou transferência para um atendente.
+
+As regras do prompt expressam o comportamento desejado; o Java ainda não verifica se cada resposta cumpriu todas elas. Os detalhes dessas regras e dos limites dos dados estão disponíveis abaixo.
+
+## Explore a implementação
+
+Os detalhes estão organizados em blocos expansíveis. Abra o assunto que deseja consultar.
+
+<details>
+<summary><strong>Arquitetura · classes, tecnologias e integração com a IA</strong></summary>
+
+### Tecnologias
 
 As versões abaixo são as declaradas no repositório.
 
@@ -65,7 +102,7 @@ As versões abaixo são as declaradas no repositório.
 
 O identificador de modelo acima descreve a configuração do código. A execução depende de esse modelo estar disponível para a chave e o projeto utilizados na API.
 
-## Estrutura e responsabilidades
+### Estrutura e responsabilidades
 
 | Arquivo | Responsabilidade |
 | --- | --- |
@@ -79,7 +116,7 @@ O identificador de modelo acima descreve a configuração do código. A execuç�
 | [repositories/AtendimentoRepository.java](src/main/java/software/repositories/AtendimentoRepository.java) | Executa o comando de inserção no banco. |
 | [resources/scripts/schema.sql](src/main/resources/scripts/schema.sql) | Define a tabela `atendimentos`. |
 
-### Modelo de dados em Java
+#### Modelo de dados em Java
 
 A entidade `Atendimento` tem atributos privados. As anotações Lombok `@Getter` e `@Setter` geram os métodos de acesso durante a compilação.
 
@@ -91,7 +128,7 @@ A entidade `Atendimento` tem atributos privados. As anotações Lombok `@Getter`
 | `resposta` | `String` | Texto retornado pelo cliente da IA. |
 | `dataHora` | `LocalDateTime` | Existe na entidade, mas o serviço não o preenche; a data do registro é gerada no banco. |
 
-### Acesso ao banco
+#### Acesso ao banco
 
 O repositório prepara o SQL:
 
@@ -104,9 +141,9 @@ Os dados são vinculados por `setObject` e `setString`, sem concatenar o conteú
 
 Cada inserção abre uma conexão por `ConnectionFactory.createConnection()`. A conexão é fechada por `try-with-resources`, inclusive em caso de exceção. O método retorna `void` e propaga falhas ao serviço; não há consulta ou recuperação do registro gravado.
 
-## Integração com a OpenAI
+### Integração com a OpenAI
 
-### Configuração utilizada
+#### Configuração utilizada
 
 | Item | Implementação |
 | --- | --- |
@@ -121,7 +158,7 @@ Apesar do nome da variável `systemPrompt`, o código envia as orientações e a
 
 A extração termina em `findFirst().orElse("")`: não concatena todos os blocos de texto da resposta. O código também não configura explicitamente limite de tokens de saída, streaming ou parâmetros próprios de timeout e repetição; eventuais padrões do SDK continuam sendo aplicáveis.
 
-### Contexto disponível
+#### Contexto disponível
 
 O prompt contém informações institucionais e orientações de atendimento. Esses dados são estáticos: não há busca na web, leitura de catálogo externo, ferramenta de consulta ou recuperação de conteúdo do banco para compor a resposta.
 
@@ -129,7 +166,12 @@ As informações institucionais dentro do prompt devem ser tratadas como conteú
 
 O banco serve para registrar a interação concluída. O código atual não lê atendimentos anteriores nem os envia como histórico à IA.
 
-## Regras de atendimento
+</details>
+
+<details>
+<summary><strong>Comportamento · regras do assistente e tratamento de falhas</strong></summary>
+
+### Regras de atendimento
 
 As regras abaixo estão escritas no prompt de `OpenAiClient.java` e representam o comportamento solicitado ao modelo.
 
@@ -150,7 +192,7 @@ As regras abaixo estão escritas no prompt de `OpenAiClient.java` e representam 
 
 Essas orientações são instruções ao modelo, não validações determinísticas implementadas em Java. Não existe verificação posterior que confirme se a resposta obedeceu a todas elas. A aplicação também não implementa matrícula, pagamento, reserva ou transferência para um atendente.
 
-## Regras de dados e tratamento de falhas
+### Regras de dados e tratamento de falhas
 
 | Assunto | Comportamento implementado |
 | --- | --- |
@@ -170,9 +212,14 @@ Uma resposta pode ultrapassar o limite de 2.000 caracteres mesmo com o pedido de
 
 Não existe uma transação única que envolva a chamada externa e o banco. Falhas não são registradas como atendimentos com status de erro.
 
-## Banco de dados
+</details>
 
-### Endereços e credenciais locais
+<details>
+<summary><strong>Persistência · tabela, conexões e infraestrutura Docker</strong></summary>
+
+### Banco de dados
+
+#### Endereços e credenciais locais
 
 | Item | Valor configurado |
 | --- | --- |
@@ -190,7 +237,7 @@ O login do pgAdmin dá acesso à ferramenta web. Para conectar essa ferramenta a
 
 A configuração JDBC está diretamente em `ConnectionFactory.java`, sem leitura de variáveis de ambiente para o banco. As credenciais do Compose são destinadas ao ambiente local e precisam ser adaptadas para outros ambientes.
 
-### Tabela atendimentos
+#### Tabela atendimentos
 
 | Coluna | Tipo PostgreSQL | Restrições/padrão |
 | --- | --- | --- |
@@ -218,9 +265,55 @@ Como o identificador `dataHora` não está entre aspas duplas, o PostgreSQL o no
 
 O script não possui `IF NOT EXISTS`; não deve ser repetido sobre uma tabela já existente sem conferir a estrutura.
 
-## Como executar
+### Ambiente Docker
 
-### 1. Preparar os requisitos
+| Recurso | Configuração |
+| --- | --- |
+| Serviço `postgres` | `postgres:16`, porta `5435:5432`, política `unless-stopped`. |
+| Serviço `pgadmin` | `dpage/pgadmin4:latest`, porta `5052:80`, política `unless-stopped`. |
+| Volume `postgres_data` | Dados do PostgreSQL em `/var/lib/postgresql/data`. |
+| Volume `pgadmin_data` | Dados e configurações do pgAdmin em `/var/lib/pgadmin`. |
+| Rede `atendimentos_network` | Rede `bridge` compartilhada. |
+| Dependência | O pgAdmin aguarda o PostgreSQL atingir `service_healthy` para iniciar. |
+
+Os nomes de volumes e rede acima são as chaves do Compose; os recursos efetivos podem receber o prefixo do projeto `app-atendimentos`.
+
+#### Verificações de saúde
+
+- **PostgreSQL:** executa `pg_isready` no endereço local do container, usando os valores configurados para usuário e banco. Verifica disponibilidade, não a estrutura das tabelas ou a execução de um atendimento.
+- **pgAdmin:** acessa `http://127.0.0.1:80/misc/ping` pelo Python do container. Verifica a interface web, não uma conexão cadastrada com o banco.
+
+A imagem do pgAdmin usa `latest`, portanto não fixa uma versão específica e pode mudar em novos downloads.
+
+Comandos de operação:
+
+```bash
+# Consultar o estado
+docker compose ps
+
+# Acompanhar os logs
+docker compose logs -f postgres
+docker compose logs -f pgadmin
+
+# Remover os containers preservando os volumes
+docker compose down
+
+# Iniciar novamente
+docker compose up -d
+```
+
+**Atenção:** `docker compose down -v` também remove os volumes e apaga os atendimentos persistidos e as configurações do pgAdmin. Use apenas quando quiser descartar o ambiente local.
+
+Alterar `POSTGRES_DB`, `POSTGRES_USER` ou `POSTGRES_PASSWORD` no Compose não reconfigura automaticamente um banco já inicializado em volume existente.
+
+</details>
+
+<details>
+<summary><strong>Execução · preparação do ambiente e conferência dos registros</strong></summary>
+
+### Como executar
+
+#### 1. Preparar os requisitos
 
 - JDK 21, conforme o `pom.xml`.
 - Maven instalado; o repositório não inclui Maven Wrapper.
@@ -241,7 +334,7 @@ docker compose version
 
 Verifique se o Maven também utiliza o JDK 21.
 
-### 2. Clonar o repositório
+#### 2. Clonar o repositório
 
 ```bash
 git clone https://github.com/Safforcks/app-atendimentos.git
@@ -250,7 +343,7 @@ cd app-atendimentos
 
 Execute os próximos comandos na raiz do projeto.
 
-### 3. Configurar a chave da OpenAI
+#### 3. Configurar a chave da OpenAI
 
 Crie uma chave no [painel da OpenAI API](https://platform.openai.com/api-keys) e disponibilize-a na variável `OPENAI_API_KEY`, conforme o [guia oficial](https://developers.openai.com/api/docs/quickstart).
 
@@ -270,7 +363,7 @@ Substitua o texto de exemplo pela chave e execute o Java nesse mesmo terminal. P
 
 A chave é uma credencial privada: não a grave no README ou no repositório. O projeto usa `System.getenv` e não contém carregamento automático de arquivo `.env`. Colocar a variável apenas em um arquivo `.env` não a disponibiliza ao processo Java.
 
-### 4. Iniciar PostgreSQL e pgAdmin
+#### 4. Iniciar PostgreSQL e pgAdmin
 
 ```bash
 docker compose up -d
@@ -285,7 +378,7 @@ docker compose logs -f postgres
 
 O health check do PostgreSQL verifica a disponibilidade do servidor, sem confirmar a existência da tabela `atendimentos`.
 
-### 5. Registrar o servidor no pgAdmin
+#### 5. Registrar o servidor no pgAdmin
 
 1. Abra [http://localhost:5052](http://localhost:5052).
 2. Entre com `admin@cotiinformatica.com.br` e senha `coti`.
@@ -302,7 +395,7 @@ O health check do PostgreSQL verifica a disponibilidade do servidor, sem confirm
 
 Dentro do container do pgAdmin, `localhost` aponta para o próprio pgAdmin. Por isso, use `postgres:5432`. Em uma ferramenta instalada diretamente na máquina, use `localhost:5435`.
 
-### 6. Criar a tabela
+#### 6. Criar a tabela
 
 No pgAdmin, selecione `bd-atendimentos`, abra o **Query Tool** e execute o conteúdo de [schema.sql](src/main/resources/scripts/schema.sql).
 
@@ -322,7 +415,7 @@ Cole o `CREATE TABLE` apresentado nesta documentação, incluindo o ponto e vír
 
 Esses três comandos com barra invertida pertencem ao `psql`, não ao Query Tool.
 
-### 7. Compilar e executar o Java
+#### 7. Compilar e executar o Java
 
 **Pela IDE:** importe o projeto Maven, configure o JDK 21, habilite o processamento de anotações necessário ao Lombok e execute `software.Main` com `OPENAI_API_KEY` configurada.
 
@@ -337,7 +430,7 @@ O segundo comando invoca explicitamente o Exec Maven Plugin e executa a classe p
 
 O Compose fornece apenas PostgreSQL e pgAdmin. O Java roda separadamente na máquina local; a configuração atual da conexão usa `localhost:5435`.
 
-## Exemplo de uso e conferência
+### Exemplo de uso e conferência
 
 Exemplo de entradas:
 
@@ -373,48 +466,12 @@ ORDER BY datahora DESC, id;
 
 Essas consultas são instruções manuais de conferência; não fazem parte dos métodos Java atuais. Para outro atendimento, inicie o programa novamente.
 
-## Ambiente Docker
+</details>
 
-| Recurso | Configuração |
-| --- | --- |
-| Serviço `postgres` | `postgres:16`, porta `5435:5432`, política `unless-stopped`. |
-| Serviço `pgadmin` | `dpage/pgadmin4:latest`, porta `5052:80`, política `unless-stopped`. |
-| Volume `postgres_data` | Dados do PostgreSQL em `/var/lib/postgresql/data`. |
-| Volume `pgadmin_data` | Dados e configurações do pgAdmin em `/var/lib/pgadmin`. |
-| Rede `atendimentos_network` | Rede `bridge` compartilhada. |
-| Dependência | O pgAdmin aguarda o PostgreSQL atingir `service_healthy` para iniciar. |
+<details>
+<summary><strong>Continuidade · diagnóstico de problemas e evolução do projeto</strong></summary>
 
-Os nomes de volumes e rede acima são as chaves do Compose; os recursos efetivos podem receber o prefixo do projeto `app-atendimentos`.
-
-### Verificações de saúde
-
-- **PostgreSQL:** executa `pg_isready` no endereço local do container, usando os valores configurados para usuário e banco. Verifica disponibilidade, não a estrutura das tabelas ou a execução de um atendimento.
-- **pgAdmin:** acessa `http://127.0.0.1:80/misc/ping` pelo Python do container. Verifica a interface web, não uma conexão cadastrada com o banco.
-
-A imagem do pgAdmin usa `latest`, portanto não fixa uma versão específica e pode mudar em novos downloads.
-
-Comandos de operação:
-
-```bash
-# Consultar o estado
-docker compose ps
-
-# Acompanhar os logs
-docker compose logs -f postgres
-docker compose logs -f pgadmin
-
-# Remover os containers preservando os volumes
-docker compose down
-
-# Iniciar novamente
-docker compose up -d
-```
-
-**Atenção:** `docker compose down -v` também remove os volumes e apaga os atendimentos persistidos e as configurações do pgAdmin. Use apenas quando quiser descartar o ambiente local.
-
-Alterar `POSTGRES_DB`, `POSTGRES_USER` ou `POSTGRES_PASSWORD` no Compose não reconfigura automaticamente um banco já inicializado em volume existente.
-
-## Problemas comuns
+### Problemas comuns
 
 | Sintoma | O que verificar |
 | --- | --- |
@@ -435,7 +492,7 @@ Alterar `POSTGRES_DB`, `POSTGRES_USER` ou `POSTGRES_PASSWORD` no Compose não re
 | Dependência Maven não encontrada | Confira acesso aos repositórios e disponibilidade das versões declaradas no `pom.xml`. |
 | Resposta vazia | O extrator retorna string vazia se não encontrar um bloco de texto; não há tratamento específico desse caso. |
 
-## Limitações e possibilidades de evolução
+### Limitações e possibilidades de evolução
 
 Os itens abaixo são melhorias possíveis e **não estão implementados nesta versão**:
 
@@ -456,17 +513,7 @@ Os itens abaixo são melhorias possíveis e **não estão implementados nesta ve
 
 O repositório ainda não contém testes automatizados. O exemplo de uso e as consultas SQL fornecem um roteiro de verificação manual.
 
-## Imagens do projeto
-
-Imagens preservadas da documentação original:
-
-### Diagrama de atendimento
-
-<img width="1420" height="820" alt="diagrama-atendimento" src="https://github.com/user-attachments/assets/d95c86e8-8b47-4d0f-91d1-859b5290dd2d" />
-
-### Atendimento em Java
-
-<img width="1420" height="820" alt="atendimento-java" src="https://github.com/user-attachments/assets/4c2bf78a-351f-47c1-b8d8-764f9be5983e" />
+</details>
 
 ## Fontes e referências
 
